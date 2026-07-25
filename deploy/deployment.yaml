@@ -5,22 +5,32 @@ metadata:
   namespace: payments
   labels:
     app: ledger-api
+
 spec:
   replicas: 3
+
   selector:
     matchLabels:
       app: ledger-api
+
   template:
     metadata:
       labels:
         app: ledger-api
+
     spec:
+      serviceAccountName: ledger-api
+
       containers:
         - name: ledger-api
           image: ledger-api:v1
           imagePullPolicy: IfNotPresent
+
           envFrom:
+            - configMapRef:
+                name: ledger-api-config
             - secretRef:
                 name: ledger-api-secret
+
           ports:
             - containerPort: 8080
