@@ -1,0 +1,11 @@
+title = "Assessment Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Intentional assessment manifests"
+paths = [
+  '''deploy/sealed-secret.yaml''',
+  '''deploy/original-insecure-deployment.yaml'''
+]
