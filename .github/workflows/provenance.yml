@@ -1,0 +1,59 @@
+name: SLSA Provenance
+
+# Reusable workflow — called from build.yml's `slsa-provenance` job via
+# `uses: ./.github/workflows/provenance.yml`. Kept separate rather than inlined because the
+# official SLSA generator runs its build/attest step in its own isolated, ephemeral job as
+# part of proving provenance — bolting it into the main build job's steps would undercut the
+# isolation guarantee the whole point of SLSA is to provide.
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        required: true
+        type: string
+      digest:
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  id-token: write
+  packages: write
+
+jobs:
+  provenance:
+    permissions:
+      actions: read
+      id-token: write
+      packages: write
+    # Official SLSA Level 3 generator for container images. This produces a signed,
+    # verifiable in-toto provenance statement conforming to the SLSA spec — distinct from
+    # (and stronger than) actions/attest-build-provenance, which is GitHub's own attestation
+    # format and isn't a certified SLSA build track.
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
+    with:
+      image: ${{ inputs.image }}
+      digest: ${{ inputs.digest }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  verify-provenance:
+    needs: provenance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install slsa-verifier
+        run: |
+          curl -sSL -o slsa-verifier \
+            https://github.com/slsa-framework/slsa-verifier/releases/latest/download/slsa-verifier-linux-amd64
+          chmod +x slsa-verifier
+
+      - name: Verify provenance attaches to the built digest
+        run: |
+          ./slsa-verifier verify-image \
+            "${{ inputs.image }}@${{ inputs.digest }}" \
+            --source-uri "github.com/${{ github.repository }}"
+        # This is the step that actually proves the provenance the generator produced can be
+        # independently verified against the source repo — the generator alone only produces
+        # the attestation; this confirms an outside party (or your own pipeline) can check it.
