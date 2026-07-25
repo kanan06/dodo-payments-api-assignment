@@ -27,9 +27,6 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
-        with:
-          args: detect --no-git --config=.gitleaks.toml
 
       - name: Run Semgrep
         uses: semgrep/semgrep-action@v1
@@ -99,3 +96,4 @@ jobs:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+
