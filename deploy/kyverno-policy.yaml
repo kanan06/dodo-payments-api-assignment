@@ -1,12 +1,14 @@
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
-  name: require-run-as-non-root
+  name: workload-security
 spec:
   validationFailureAction: Enforce
   background: true
+
   rules:
-    - name: check-run-as-non-root
+
+    - name: require-run-as-non-root
       match:
         any:
           - resources:
@@ -18,3 +20,19 @@ spec:
           spec:
             securityContext:
               runAsNonRoot: true
+
+    - name: disallow-latest-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Images tagged ':latest' are not allowed."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"
+
+    # Task 2:
+    # verifyImages rule will be added after Cosign signing
