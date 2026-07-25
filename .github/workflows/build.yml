@@ -80,8 +80,8 @@ jobs:
         if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: semgrep.sarif
-          category: semgrep
+          sarif_file: app/semgrep.sarif   # the job's working-directory default means the file
+          category: semgrep                # actually lands at app/semgrep.sarif, not repo root
 
   # ---------------------------------------------------------------------------
   # Gate 3: dependency/CVE scan — scans requirements.txt BEFORE we build an image from it
@@ -248,4 +248,3 @@ jobs:
           git push
         # sed -i (no '' arg) is correct here because this runs on the Ubuntu runner, not macOS —
         # don't copy this exact syntax into a local pre-commit hook on your Mac.
-
