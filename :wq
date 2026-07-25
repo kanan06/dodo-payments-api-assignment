@@ -1,0 +1,16 @@
+## CI/CD Pipeline
+
+This project uses GitHub Actions to automate:
+
+- Secret scanning with Gitleaks
+- Static code analysis using Semgrep
+- Docker image build
+- Image publishing to GitHub Container Registry (GHCR)
+- Container vulnerability scanning using Trivy
+- Container image signing using Cosign
+
+Published image:
+
+```
+ghcr.io/kanan06/dodo-payments-api-assignment
+```
