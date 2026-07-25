@@ -63,25 +63,35 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Fail policy: HARD BLOCK. No such thing as a "soft" leaked credential.
 
-      - name: Semgrep SAST (direct CLI — not the action's generateSarif flag)
+     
+      - name: Install Semgrep
+        
         run: |
           pip install semgrep
-          semgrep scan --config p/owasp-top-ten --config p/python \
-            --sarif --output semgrep.sarif --error
-        # Deliberately NOT using `semgrep/semgrep-action`'s generateSarif input here.
-        # That flag has a long, documented history of crashing or silently failing to write
-        # the file (semgrep/semgrep-action#376, semgrep/semgrep#4191, semgrep/semgrep#4552 —
-        # multiple independent reports of "Path does not exist: semgrep.sarif" at upload time,
-        # spanning 2021 through recent reports). Calling the CLI directly is one less moving
-        # part and is what current semgrep docs/tutorials show for CI SARIF generation.
-        # Fail policy: HARD BLOCK on High/Critical (--error exits non-zero on findings).
+
+      - name: Run Semgrep (Generate SARIF)
+        run: |
+          semgrep scan \
+            --config p/owasp-top-ten \
+            --config p/python \
+            --verbose \
+            --sarif \
+            --output semgrep.sarif
 
       - name: Upload Semgrep SARIF
         if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: app/semgrep.sarif   # the job's working-directory default means the file
-          category: semgrep                # actually lands at app/semgrep.sarif, not repo root
+          sarif_file: app/semgrep.sarif
+          category: semgrep
+
+      - name: Semgrep Gate (Fail on Findings)
+        run: |
+          semgrep scan \
+            --config p/owasp-top-ten \
+            --config p/python \
+            --verbose \
+            --error
 
   # ---------------------------------------------------------------------------
   # Gate 3: dependency/CVE scan — scans requirements.txt BEFORE we build an image from it
