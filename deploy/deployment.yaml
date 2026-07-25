@@ -1,5 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
+
 metadata:
   name: ledger-api
   namespace: payments
@@ -21,38 +22,75 @@ spec:
     spec:
       serviceAccountName: ledger-api
 
+      # Prevent automatic mounting of the Kubernetes API token
+      automountServiceAccountToken: false
+
+      # Pod Security Context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+
+        seccompProfile:
+          type: RuntimeDefault
+
       containers:
         - name: ledger-api
+
           image: ledger-api:v1
           imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 8080
 
           envFrom:
             - configMapRef:
                 name: ledger-api-config
+
             - secretRef:
                 name: ledger-api-secret
 
-          ports:
-            - containerPort: 8080
+          # Container Security Context
+          securityContext:
+            allowPrivilegeEscalation: false
+
+            readOnlyRootFilesystem: true
+
+            capabilities:
+              drop:
+                - ALL
 
           resources:
             requests:
               cpu: "100m"
               memory: "128Mi"
+
             limits:
               cpu: "250m"
               memory: "256Mi"
-
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 10
 
           readinessProbe:
             httpGet:
               path: /health
               port: 8080
+
             initialDelaySeconds: 5
             periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+          # Required because root filesystem is read-only
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
