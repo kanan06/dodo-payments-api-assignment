@@ -80,15 +80,17 @@ def _is_blocked_destination(url: str) -> bool:
 
 @app.route("/fetch")
 def fetch():
+    # Justification: url is validated against an RFC1918/loopback/link-local blocklist
+    # (with hostname resolution) by _is_blocked_destination() below, before any request is
+    # made — Semgrep's taint tracker flags the source assignment regardless because it
+    # doesn't recognize a locally-defined function as a sanitizer, only patterns it's
+    # specifically taught. Durable enforcement is the Task 3 egress NetworkPolicy, not
+    # this app-level check alone.
+    # nosemgrep: python.django.security.injection.ssrf.ssrf-injection-requests.ssrf-injection-requests
     url = request.args.get("url", "")
     if _is_blocked_destination(url):
         return jsonify(error="destination not allowed"), 403
-    # Justification: url is validated against an RFC1918/loopback/link-local blocklist
-    # (with hostname resolution) by _is_blocked_destination() immediately above — Semgrep's
-    # taint tracker flags this line regardless because it doesn't recognize a locally-defined
-    # function as a sanitizer, only patterns it's specifically taught. Durable enforcement is
-    # the Task 3 egress NetworkPolicy, not this app-level check alone.
-    # nosemgrep: python.django.security.injection.ssrf.ssrf-injection-requests.ssrf-injection-requests,python.flask.security.injection.ssrf-requests.ssrf-requests
+    # nosemgrep: python.flask.security.injection.ssrf-requests.ssrf-requests
     resp = requests.get(url, timeout=5)
     return jsonify(status_code=resp.status_code, body=resp.text[:2048])
 
