@@ -81,36 +81,25 @@ def _is_blocked_destination(url: str) -> bool:
 @app.route("/fetch")
 def fetch():
     url = request.args.get("url", "")
-
     if _is_blocked_destination(url):
         return jsonify(error="destination not allowed"), 403
-
-    # nosemgrep: python.django.security.injection.ssrf.ssrf-injection-requests.ssrf-injection-requests
-    # nosemgrep: python.flask.security.injection.ssrf-requests
-    #
-    # Justification:
-    # The destination URL is validated by _is_blocked_destination() before the
-    # outbound request is made. The validation rejects loopback, RFC1918,
-    # link-local (including cloud metadata), malformed, and unresolvable
-    # destinations. NetworkPolicy and Istio egress controls provide an
-    # additional enforcement layer.
+    # Justification: url is validated against an RFC1918/loopback/link-local blocklist
+    # (with hostname resolution) by _is_blocked_destination() immediately above — Semgrep's
+    # taint tracker flags this line regardless because it doesn't recognize a locally-defined
+    # function as a sanitizer, only patterns it's specifically taught. Durable enforcement is
+    # the Task 3 egress NetworkPolicy, not this app-level check alone.
+    # nosemgrep: python.django.security.injection.ssrf.ssrf-injection-requests.ssrf-injection-requests,python.flask.security.injection.ssrf-requests.ssrf-requests
     resp = requests.get(url, timeout=5)
-
-    return jsonify(
-        status_code=resp.status_code,
-        body=resp.text[:2048],
-    )
+    return jsonify(status_code=resp.status_code, body=resp.text[:2048])
 
 
 if __name__ == "__main__":
+    # Justification: required for reachability inside a Kubernetes pod/Service; binding to
+    # 127.0.0.1 would make the container unreachable from the Service. Actual network
+    # exposure is scoped by the Task 3 NetworkPolicy + Istio AuthorizationPolicy, not by
+    # this bind address.
     # nosemgrep: python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host
-    #
-    # Justification:
-    # Flask must bind to 0.0.0.0 so the application is reachable through the
-    # Kubernetes Service. External exposure is controlled by Kubernetes
-    # NetworkPolicies and Istio AuthorizationPolicies rather than the bind
-    # address itself.
-    app.run(host="0.0.0.0", port=8080)  # nosemgrep: python.flask.security.audit.app-run-param-config
+    app.run(host="0.0.0.0", port=8080)
     # Justification: required for reachability inside a Kubernetes pod/Service; binding to
     # 127.0.0.1 would make the container unreachable from the Service. Actual network
     # exposure is scoped by the Task 3 NetworkPolicy + Istio AuthorizationPolicy, not by
